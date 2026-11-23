@@ -663,6 +663,9 @@
     }
     #welcomePassword button { animation: none; }
     #passwordMessage { margin: 0; color: #ffc097; }
+    .player-tools { flex-wrap: wrap; }
+    .volume-tools { display: flex; align-items: center; gap: 5px; }
+    .player-controls .volume { width: clamp(40px, 10vw, 80px); }
 </style>
 </head>
 <body>
@@ -931,7 +934,10 @@
           <div class="player-tools">
             <button type="button" class="play" aria-label="تشغيل">▶</button>
             <span class="player-time">0:00 / 0:00</span>
-            <button type="button" class="sound" aria-label="كتم الصوت">🔊</button>
+            <div class="volume-tools">
+              <button type="button" class="sound" aria-label="كتم الصوت">🔊</button>
+              <input class="volume" type="range" min="0" max="1" value="1" step=".01" aria-label="مستوى الصوت">
+            </div>
             <select aria-label="سرعة التشغيل"><option>.5×</option><option selected>1×</option><option>1.25×</option><option>1.5×</option><option>2×</option></select>
             <button type="button" class="full" aria-label="ملء الشاشة">⛶</button>
           </div>
@@ -940,6 +946,7 @@
       const seek = player.querySelector('input');
       const play = player.querySelector('.play');
       const sound = player.querySelector('.sound');
+      const volume = player.querySelector('.volume');
       const time = player.querySelector('.player-time');
       const full = player.querySelector('.full');
       const format = (seconds) => {
@@ -964,10 +971,22 @@
       play.addEventListener('click', togglePlayback);
       video.addEventListener('click', togglePlayback);
       seek.addEventListener('input', () => { video.currentTime = Number(seek.value); });
+      function syncVolume() {
+        const silent = video.muted || video.volume === 0;
+        volume.value = silent ? 0 : video.volume;
+        sound.textContent = silent ? '🔇' : '🔊';
+        sound.setAttribute('aria-label', silent ? 'تشغيل الصوت' : 'كتم الصوت');
+      }
+      video.addEventListener('volumechange', syncVolume);
+      volume.addEventListener('input', () => {
+        video.volume = Number(volume.value);
+        video.muted = video.volume === 0;
+        syncVolume();
+      });
       sound.addEventListener('click', () => {
-        video.muted = !video.muted;
-        sound.textContent = video.muted ? '🔇' : '🔊';
-        sound.setAttribute('aria-label', video.muted ? 'تشغيل الصوت' : 'كتم الصوت');
+        if (video.volume === 0) video.volume = 0.5;
+        else video.muted = !video.muted;
+        syncVolume();
       });
       player.querySelector('select').addEventListener('change', (event) => {
         video.playbackRate = parseFloat(event.target.value);
@@ -1102,6 +1121,8 @@
       const finish = () => {
         welcome.close();
         document.documentElement.classList.remove('welcoming');
+        lastActivity = Date.now();
+        idleTimer = setTimeout(checkIdle, idleDelay);
       };
       if (reducedMotion.matches) {
         finish();
@@ -1121,6 +1142,56 @@
     const passwordForm = document.getElementById('welcomePassword');
     const passwordInput = document.getElementById('entryPassword');
     const passwordMessage = document.getElementById('passwordMessage');
+
+    const idleDelay = 5 * 60 * 1000;
+    let lastActivity = 0;
+    let idleTimer;
+
+    function lockSite() {
+      clearTimeout(idleTimer);
+      lastActivity = 0;
+      closeModal();
+      if (mobileMenu.open) {
+        mobileMenu.close();
+        syncDrawer();
+      }
+      if (secretSite.open) {
+        secretAudio.pause();
+        secretSite.close();
+      }
+      if (document.fullscreenElement) document.exitFullscreen().catch(() => {});
+      welcome.classList.remove('leaving');
+      passwordForm.reset();
+      passwordInput.removeAttribute('aria-invalid');
+      passwordMessage.textContent = '';
+      passwordForm.hidden = true;
+      welcomeStart.hidden = false;
+      window.scrollTo({ top: 0, behavior: 'instant' });
+      document.documentElement.classList.add('welcoming');
+      welcome.showModal();
+    }
+
+    function checkIdle() {
+      if (!lastActivity || welcome.open) return;
+      clearTimeout(idleTimer);
+      const remaining = idleDelay - (Date.now() - lastActivity);
+      if (remaining <= 0) lockSite();
+      else idleTimer = setTimeout(checkIdle, remaining);
+    }
+
+    function recordActivity() {
+      if (!lastActivity || welcome.open) return;
+      const now = Date.now();
+      if (now - lastActivity >= idleDelay) lockSite();
+      else lastActivity = now;
+    }
+
+    ['pointermove', 'pointerdown', 'touchstart', 'keydown', 'wheel'].forEach((event) => {
+      document.addEventListener(event, recordActivity, { passive: true, capture: true });
+    });
+    document.addEventListener('visibilitychange', () => {
+      if (!document.hidden) checkIdle();
+    });
 
     welcomeStart.addEventListener('click', () => {
       welcomeStart.hidden = true;

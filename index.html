@@ -621,6 +621,38 @@
     .secret-picture { position: relative; width: fit-content; overflow: hidden; }
     .secret-picture img { display: block; max-width: 94vw; max-height: 94dvh; object-fit: contain; }
     .secret-picture::after { inset: 0; border-radius: 0; }
+    @media (max-width: 900px) {
+      .hero .stats {
+        display: grid;
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+        width: 100%;
+        max-width: 430px;
+        gap: clamp(5px, 2vw, 10px);
+        margin-inline: auto;
+      }
+      .hero .stat {
+        min-width: 0;
+        padding: 10px 3px;
+        text-align: center;
+      }
+      .hero .stat .num {
+        justify-content: center;
+        gap: 4px;
+        font-size: clamp(.85rem, 4vw, 1.15rem);
+        white-space: nowrap;
+      }
+      .hero .stat .label { font-size: clamp(.8rem, 3.8vw, 1rem); }
+      .bg .orb1, .bg .orb2 { display: none; }
+      .bg .ring, .card, .cover-inner,
+      .hero-media .badge1, .hero-media .badge2 { animation: none !important; }
+      .cover::before { display: none; }
+      .nav, .eye-box, .modal {
+        -webkit-backdrop-filter: none;
+        backdrop-filter: none;
+      }
+      .header .nav { background: #141929; }
+      .card, .hero .stat { box-shadow: 0 3px 12px #05020f55; }
+    }
 </style>
 </head>
 <body>

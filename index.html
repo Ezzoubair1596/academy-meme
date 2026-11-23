@@ -2,7 +2,7 @@
 <html lang="ar" dir="rtl">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
   <title>Academy Memes</title>
   <link rel="icon" type="image/png" sizes="192x192" href="./favicon.png">
   <script>document.documentElement.classList.add("welcome-pending");</script>
@@ -679,6 +679,9 @@
       justify-self: center; font: inherit; padding: 7px 12px; cursor: pointer;
       border: 1px solid #4d657e; border-radius: 10px; background: #1d3048; color: #fff;
     }
+    @media (any-pointer: coarse) {
+      html, body, dialog, .modal { touch-action: pan-x pan-y; }
+    }
 </style>
 </head>
 <body>
@@ -1186,6 +1189,16 @@
     const passwordInput = document.getElementById('entryPassword');
     const passwordMessage = document.getElementById('passwordMessage');
 
+    const zoomListenerOptions = { passive: false, capture: true };
+    function preventTouchZoom(event) {
+      if (event.cancelable && (!event.touches || event.touches.length > 1)) {
+        event.preventDefault();
+      }
+    }
+    ['touchstart', 'touchmove', 'gesturestart', 'gesturechange'].forEach((event) => {
+      document.addEventListener(event, preventTouchZoom, zoomListenerOptions);
+    });
+
     const idleDelay = 5 * 60 * 1000;
     let lastActivity = 0;
     let idleTimer;
@@ -1243,7 +1256,7 @@
     });
     passwordForm.addEventListener('submit', (event) => {
       event.preventDefault();
-      if (passwordInput.value !== '123456789') {
+      if (passwordInput.value !== '123456') {
         passwordMessage.textContent = 'المودباص غالط، عاود جرّب.';
         passwordInput.setAttribute('aria-invalid', 'true');
         passwordInput.select();

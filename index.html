@@ -666,6 +666,29 @@
     .player-tools { flex-wrap: wrap; }
     .volume-tools { display: flex; align-items: center; gap: 5px; }
     .player-controls .volume { width: clamp(40px, 10vw, 80px); }
+    .nav-links .whatsapp-link { padding-inline: 12px; white-space: nowrap; color: #a7f3d0; }
+    @media (min-width: 901px) and (max-width: 1180px) {
+      .nav-links a { padding-inline: 11px; }
+    }
+    .whatsapp-access {
+      width: min(92vw, 360px); margin: auto; padding: 22px;
+      color: #fff; background: #111829; border: 1px solid #3b5167; border-radius: 20px;
+    }
+    .whatsapp-access::backdrop { background: #04060bd9; }
+    #whatsappForm { display: grid; gap: 10px; }
+    #whatsappForm h2, #whatsappMessage { margin: 0; }
+    #whatsappMessage { color: #ffc097; }
+    #whatsappForm input, #whatsappForm button, .image-zoom {
+      font: inherit; padding: 7px 12px; border: 1px solid #4d657e;
+      border-radius: 10px; background: #1d3048; color: #fff;
+    }
+    #whatsappForm button, .image-zoom { cursor: pointer; }
+    .whatsapp-close { justify-self: end; }
+    .image-viewer { display: grid; gap: 6px; max-width: 90vw; }
+    .image-scroll { overflow: auto; max-height: 80dvh; max-width: 90vw; direction: ltr; border-radius: 20px; }
+    .image-scroll .modal-media { display: block; max-height: 80dvh; margin: auto; border-radius: 0; box-shadow: none; }
+    .image-scroll.zoomed .modal-media { width: 180%; max-width: none; max-height: none; }
+    .image-zoom { justify-self: center; }
 </style>
 </head>
 <body>
@@ -695,6 +718,7 @@
         <a href="#videos">الفيديوات</a>
         <a href="#songs">الأغاني</a>
         <a class="new-nav" href="#new-videos">الجديد</a>
+        <a class="whatsapp-link" href="#whatsappAccess" aria-haspopup="dialog">مجموعة واتساب</a>
       </div>
       <div class="nav-actions">
         <a class="daily" href="#new-videos">جديد كل يوم 🔥</a>
@@ -707,6 +731,7 @@
         <a href="#videos">الفيديوات</a>
         <a href="#songs">الأغاني</a>
         <a class="new-nav" href="#new-videos">الجديد</a>
+        <a class="whatsapp-link" href="#whatsappAccess" aria-haspopup="dialog">مجموعة واتساب</a>
         <a href="#new-videos">جديد كل يوم 🔥</a>
         <form class="code-form" id="siteCodeForm">
           <input name="code" placeholder="الكود" aria-label="الكود" autocomplete="off" autocapitalize="off" spellcheck="false" required>
@@ -783,6 +808,16 @@
     <div class="container back-to-top"><a class="top-link" href="#home">طلع للفوق ↑</a></div>
   </main>
 
+  <dialog id="whatsappAccess" class="whatsapp-access" aria-labelledby="whatsappTitle">
+    <form id="whatsappForm">
+      <button type="button" class="whatsapp-close" aria-label="إغلاق">×</button>
+      <h2 id="whatsappTitle">مجموعة واتساب</h2>
+      <label for="whatsappPassword">كتب المودباص</label>
+      <input id="whatsappPassword" type="password" autocomplete="off" required autofocus aria-describedby="whatsappMessage">
+      <button type="submit">فتح المجموعة</button>
+      <p id="whatsappMessage" role="status"></p>
+    </form>
+  </dialog>
   <dialog class="secret-site" id="secretSite" aria-label="الصورة المخفية">
     <div class="secret-picture"><img alt="الصورة المخفية"></div>
     <audio hidden preload="none" src="https://res.cloudinary.com/dbo59baai/video/upload/v1795462727/1570540346285367367_cit2ka.ogg"></audio>
@@ -921,8 +956,29 @@
       }
       el.src = src;
       el.className = 'modal-media';
-      content.appendChild(type === 'image' ? el : createPlayer(el));
+      content.appendChild(type === 'image' ? createImageViewer(el) : createPlayer(el));
       modal.classList.add('open');
+    }
+
+    function createImageViewer(image) {
+      const viewer = document.createElement('div');
+      viewer.className = 'image-viewer';
+      const viewport = document.createElement('div');
+      viewport.className = 'image-scroll';
+      viewport.appendChild(image);
+      const zoom = document.createElement('button');
+      zoom.type = 'button';
+      zoom.className = 'image-zoom';
+      zoom.textContent = 'تكبير +';
+      zoom.setAttribute('aria-pressed', 'false');
+      zoom.addEventListener('click', () => {
+        const enlarged = viewport.classList.toggle('zoomed');
+        zoom.textContent = enlarged ? 'تصغير −' : 'تكبير +';
+        zoom.setAttribute('aria-pressed', String(enlarged));
+        if (!enlarged) viewport.scrollTo(0, 0);
+      });
+      viewer.append(viewport, zoom);
+      return viewer;
     }
 
     function createPlayer(video) {
@@ -1041,6 +1097,31 @@
     });
 
     const siteCode = 'lupin';
+    const whatsappAccess = document.getElementById('whatsappAccess');
+    const whatsappForm = document.getElementById('whatsappForm');
+    const whatsappPassword = document.getElementById('whatsappPassword');
+    const whatsappMessage = document.getElementById('whatsappMessage');
+    document.querySelectorAll('.whatsapp-link').forEach((link) => {
+      link.addEventListener('click', (event) => {
+        event.preventDefault();
+        whatsappForm.reset();
+        whatsappMessage.textContent = '';
+        whatsappAccess.showModal();
+      });
+    });
+    whatsappForm.querySelector('.whatsapp-close').addEventListener('click', () => whatsappAccess.close());
+    whatsappForm.addEventListener('submit', (event) => {
+      event.preventDefault();
+      if (whatsappPassword.value !== '3bid') {
+        whatsappMessage.textContent = 'المودباص غالط، عاود جرّب.';
+        whatsappPassword.select();
+        return;
+      }
+      whatsappAccess.close();
+      whatsappForm.reset();
+      location.assign('https://chat.whatsapp.com/ETzjGhoIuLlAd1Z6idSABa?s=cl&p=a&iam=2');
+    });
+
     const secretSite = document.getElementById('secretSite');
     const secretImage = secretSite.querySelector('img');
     const secretAudio = secretSite.querySelector('audio');
@@ -1151,6 +1232,7 @@
       clearTimeout(idleTimer);
       lastActivity = 0;
       closeModal();
+      if (whatsappAccess.open) whatsappAccess.close();
       if (mobileMenu.open) {
         mobileMenu.close();
         syncDrawer();

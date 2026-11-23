@@ -654,12 +654,28 @@
       .header .nav { background: #141929; }
       .card, .hero .stat { box-shadow: 0 3px 12px #05020f55; }
     }
+    #welcomePassword:not([hidden]) { display: grid; justify-items: center; gap: 12px; width: min(100%, 320px); }
+    #welcomePassword label { font-weight: 800; font-size: 1.3rem; }
+    #entryPassword {
+      width: 100%; padding: 10px 14px; border: 1px solid #7dd3fc;
+      border-radius: 12px; background: #10182d; color: #fff; font: inherit;
+      direction: ltr; text-align: center;
+    }
+    #welcomePassword button { animation: none; }
+    #passwordMessage { margin: 0; color: #ffc097; }
 </style>
 </head>
 <body>
   <dialog id="welcome" class="welcome">
     <h1 class="logo-fun">مرحبا بكم فأكاديمي ميمز</h1>
-    <button type="button" autofocus>كليكي باش دخل</button>
+    <button id="welcomeStart" type="button" autofocus>كليكي باش دخل</button>
+
+    <form id="welcomePassword" hidden>
+      <label for="entryPassword">كتب المودباص</label>
+      <input id="entryPassword" type="password" inputmode="numeric" autocomplete="off" required aria-describedby="passwordMessage">
+      <button type="submit">دخول</button>
+      <p id="passwordMessage" role="status"></p>
+    </form>
   </dialog>
   <div class="nav-light" aria-hidden="true"></div>
   <div class="bg"><div class="orb1"></div><div class="orb2"></div><div class="ring"></div></div>
@@ -1101,11 +1117,30 @@
         });
       welcome.addEventListener('animationend', finish, { once: true });
     }
-    welcome.querySelector('button').addEventListener('click', enterSite);
-    welcome.addEventListener('cancel', (event) => {
+    const welcomeStart = document.getElementById('welcomeStart');
+    const passwordForm = document.getElementById('welcomePassword');
+    const passwordInput = document.getElementById('entryPassword');
+    const passwordMessage = document.getElementById('passwordMessage');
+
+    welcomeStart.addEventListener('click', () => {
+      welcomeStart.hidden = true;
+      passwordForm.hidden = false;
+      passwordInput.focus();
+    });
+    passwordForm.addEventListener('submit', (event) => {
       event.preventDefault();
+      if (passwordInput.value !== '123456789') {
+        passwordMessage.textContent = 'المودباص غالط، عاود جرّب.';
+        passwordInput.setAttribute('aria-invalid', 'true');
+        passwordInput.select();
+        return;
+      }
+      passwordMessage.textContent = '';
+      passwordInput.value = '';
+      passwordInput.removeAttribute('aria-invalid');
       enterSite();
     });
+    welcome.addEventListener('cancel', (event) => event.preventDefault());
     if (typeof welcome.showModal === 'function') {
       document.documentElement.classList.add('welcoming');
       welcome.showModal();

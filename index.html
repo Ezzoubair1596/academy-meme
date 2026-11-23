@@ -666,13 +666,15 @@
     .player-tools { flex-wrap: wrap; }
     .volume-tools { display: flex; align-items: center; gap: 5px; }
     .player-controls .volume { width: clamp(40px, 10vw, 80px); }
-    .image-viewer { display: grid; gap: 8px; max-width: 90vw; }
+    .modal.image-open .modal-box { height: calc(100dvh - 32px); }
+    .image-viewer { display: grid; gap: 8px; max-width: min(1150px, calc(100vw - 32px)); }
     .image-scroll { justify-self: center; }
     .image-scroll .modal-media {
-      display: block; max-width: 78vw; max-height: 70dvh;
+      display: block; max-width: min(69.5vw, 839px, calc((100vw - 32px) / 1.37));
+      max-height: min(65dvh, calc((100dvh - 86px) / 1.37));
       margin: auto; border-radius: 20px; box-shadow: none;
     }
-    .image-scroll.zoomed .modal-media { zoom: 1.12; }
+    .image-scroll.zoomed .modal-media { zoom: 1.37; }
     .image-zoom {
       justify-self: center; font: inherit; padding: 7px 12px; cursor: pointer;
       border: 1px solid #4d657e; border-radius: 10px; background: #1d3048; color: #fff;
@@ -933,6 +935,7 @@
       el.src = src;
       el.className = 'modal-media';
       content.appendChild(type === 'image' ? createImageViewer(el) : createPlayer(el));
+      modal.classList.toggle('image-open', type === 'image');
       modal.classList.add('open');
     }
 
@@ -945,11 +948,11 @@
       const zoom = document.createElement('button');
       zoom.type = 'button';
       zoom.className = 'image-zoom';
-      zoom.textContent = 'تكبير +';
+      zoom.textContent = 'زومي';
       zoom.setAttribute('aria-pressed', 'false');
       zoom.addEventListener('click', () => {
         const enlarged = viewport.classList.toggle('zoomed');
-        zoom.textContent = enlarged ? 'تصغير −' : 'تكبير +';
+        zoom.textContent = enlarged ? 'ديزومي' : 'زومي';
         zoom.setAttribute('aria-pressed', String(enlarged));
       });
       viewer.append(viewport, zoom);
@@ -1033,7 +1036,7 @@
     function closeModal() {
       const modal = document.getElementById('modal');
       const content = document.getElementById('modalContent');
-      modal.classList.remove('open');
+      modal.classList.remove('open', 'image-open');
       content.querySelector('video')?.pause();
       content.innerHTML = '';
     }
@@ -1074,7 +1077,7 @@
     const siteCode = 'lupin';
     const whatsappCode = '3bid';
     function openWhatsApp() {
-      location.assign('https://chat.whatsapp.com/ETzjGhoIuLlAd1Z6idSABa?s=cl&p=a&iam=2');
+      window.open('https://chat.whatsapp.com/ETzjGhoIuLlAd1Z6idSABa?s=cl&p=a&iam=2', '_blank', 'noopener,noreferrer');
     }
     const secretSite = document.getElementById('secretSite');
     const secretImage = secretSite.querySelector('img');

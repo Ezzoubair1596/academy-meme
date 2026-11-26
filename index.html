@@ -8,6 +8,8 @@
   <script>document.documentElement.classList.add("welcome-pending");</script>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="dns-prefetch" href="//res.cloudinary.com">
+  <link rel="preconnect" href="https://res.cloudinary.com">
   <link href="https://fonts.googleapis.com/css2?family=Changa:wght@500;700;800&family=Reem+Kufi+Fun:wght@500;700&display=swap" rel="stylesheet">
   <style>
     * { box-sizing: border-box; margin: 0; padding: 0; }
@@ -682,6 +684,48 @@
     @media (any-pointer: coarse) {
       html, body, dialog, .modal { touch-action: pan-x pan-y; }
     }
+    @media (max-width: 900px), (hover: none) and (pointer: coarse) {
+      .modal {
+        padding: max(12px, env(safe-area-inset-top)) max(12px, env(safe-area-inset-right))
+                 max(12px, env(safe-area-inset-bottom)) max(12px, env(safe-area-inset-left));
+      }
+      .modal-box, .modal.image-open .modal-box {
+        height: 100%; max-height: 100%; min-height: 0;
+        display: flex; flex-direction: column; align-items: stretch; justify-content: flex-start;
+        gap: 10px;
+      }
+      .modal-close {
+        position: static; flex: 0 0 auto; align-self: flex-start;
+        display: grid; place-items: center; width: 44px; height: 44px;
+        font: 28px/1 system-ui, sans-serif;
+      }
+      #modalContent {
+        flex: 1 1 0; min-width: 0; min-height: 0;
+        display: flex; align-items: center; justify-content: center;
+        overflow: auto;
+      }
+      .image-viewer { max-width: 100%; max-height: 100%; }
+      .image-scroll { max-width: 100%; max-height: 100%; min-height: 0; overflow: auto; }
+      .image-scroll .modal-media {
+        max-height: min(65dvh, calc((100dvh - 154px - env(safe-area-inset-top) - env(safe-area-inset-bottom)) / 1.37));
+      }
+      .player { display: flex; flex-direction: column; max-height: 100%; min-width: 0; }
+      .player .modal-media { min-height: 0; flex: 1 1 auto; max-height: 100%; }
+      .player-controls { flex: 0 0 auto; }
+    }
+    /* Keep the video as the only active visual layer while it is open. */
+    html.video-viewing :is(.bg, .header, main, footer, .nav-light) { visibility: hidden; }
+    html.video-viewing :is(.bg, .header, main, footer, .nav-light),
+    html.video-viewing :is(.bg, .header, main, footer, .nav-light) *,
+    html.video-viewing :is(.bg, .header, main, footer, .nav-light) *::before,
+    html.video-viewing :is(.bg, .header, main, footer, .nav-light) *::after {
+      animation-play-state: paused !important;
+    }
+    .modal.video-open { background: #05020f; backdrop-filter: none; -webkit-backdrop-filter: none; }
+    .modal.video-open .modal-box { animation: none; }
+    .player-controls input[type=range] { touch-action: none; }
+    .player-status { font: .78rem 'Changa', system-ui, sans-serif; color: #bdeaff; text-align: center; }
+    .player-status[hidden] { display: none; }
 </style>
 </head>
 <body>
@@ -808,7 +852,7 @@
 
   <div class="modal" id="modal">
     <div class="modal-box" id="modalBox">
-      <button class="modal-close" id="modalClose">×</button>
+      <button class="modal-close" id="modalClose" type="button" aria-label="إغلاق">×</button>
       <div id="modalContent"></div>
     </div>
   </div>
@@ -920,26 +964,39 @@
       }
     });
 
+    function releaseModalMedia(content) {
+      const previous = content.querySelector('video');
+      if (previous) {
+        previous.pause();
+        previous.removeAttribute('src');
+        previous.load();
+      }
+      content.replaceChildren();
+    }
+
     function openModal(src, type) {
       const modal = document.getElementById('modal');
       const content = document.getElementById('modalContent');
-      content.querySelector('video')?.pause();
-      content.innerHTML = '';
+      releaseModalMedia(content);
       let el;
       if (type === 'image') {
         el = document.createElement('img');
         el.alt = 'meme';
       } else {
         el = document.createElement('video');
-        el.autoplay = true;
+        el.preload = 'auto';
         el.playsInline = true;
+        el.setAttribute('webkit-playsinline', '');
         el.setAttribute('controlsList', 'nodownload');
       }
-      el.src = src;
       el.className = 'modal-media';
       content.appendChild(type === 'image' ? createImageViewer(el) : createPlayer(el));
       modal.classList.toggle('image-open', type === 'image');
+      modal.classList.toggle('video-open', type !== 'image');
+      document.documentElement.classList.toggle('video-viewing', type !== 'image');
       modal.classList.add('open');
+      el.src = src;
+      if (type !== 'image') el.play().catch(() => {});
     }
 
     function createImageViewer(image) {
@@ -967,6 +1024,7 @@
       player.className = 'player';
       player.innerHTML = `
         <div class="player-controls" dir="ltr">
+          <div class="player-status" role="status" dir="rtl">كنحمّلو الفيديو...</div>
           <input type="range" min="0" max="0" value="0" step=".1" disabled aria-label="موضع الفيديو">
           <div class="player-tools">
             <button type="button" class="play" aria-label="تشغيل">▶</button>
@@ -986,6 +1044,8 @@
       const volume = player.querySelector('.volume');
       const time = player.querySelector('.player-time');
       const full = player.querySelector('.full');
+      const status = player.querySelector('.player-status');
+      let scrubbing = false;
       const format = (seconds) => {
         const value = Number.isFinite(seconds) ? Math.floor(seconds) : 0;
         return Math.floor(value / 60) + ':' + String(value % 60).padStart(2, '0');
@@ -994,20 +1054,45 @@
         const duration = Number.isFinite(video.duration) ? video.duration : 0;
         seek.max = duration;
         seek.disabled = duration <= 0;
-        seek.value = video.currentTime;
-        time.textContent = format(video.currentTime) + ' / ' + format(duration);
+        if (!scrubbing) seek.value = video.currentTime;
+        time.textContent = format(scrubbing ? Number(seek.value) : video.currentTime) + ' / ' + format(duration);
         play.textContent = video.paused ? '▶' : 'Ⅱ';
         play.setAttribute('aria-label', video.paused ? 'تشغيل' : 'إيقاف مؤقت');
       }
       ['loadedmetadata', 'durationchange', 'timeupdate', 'play', 'pause', 'ended']
         .forEach((event) => video.addEventListener(event, sync));
+      function showBuffering() {
+        status.textContent = 'كنحمّلو الفيديو...';
+        status.hidden = false;
+      }
+      for (const name of ['loadstart', 'waiting', 'seeking']) video.addEventListener(name, showBuffering);
+      for (const name of ['canplay', 'playing', 'pause', 'seeked', 'ended']) {
+        video.addEventListener(name, () => { status.hidden = true; });
+      }
+      video.addEventListener('error', () => {
+        status.textContent = 'تعذّر تحميل الفيديو، عاود حاول.';
+        status.hidden = false;
+      });
       function togglePlayback() {
         if (video.paused) video.play().catch(() => {});
         else video.pause();
       }
       play.addEventListener('click', togglePlayback);
       video.addEventListener('click', togglePlayback);
-      seek.addEventListener('input', () => { video.currentTime = Number(seek.value); });
+      function commitSeek() {
+        const target = Number(seek.value);
+        scrubbing = false;
+        if (Number.isFinite(video.duration) && Math.abs(video.currentTime - target) > .05) video.currentTime = target;
+        sync();
+      }
+      seek.addEventListener('pointerdown', () => { scrubbing = true; });
+      seek.addEventListener('input', () => {
+        if (scrubbing) sync();
+        else commitSeek();
+      });
+      seek.addEventListener('change', commitSeek);
+      seek.addEventListener('pointerup', () => { if (scrubbing) commitSeek(); });
+      seek.addEventListener('pointercancel', () => { scrubbing = false; sync(); });
       function syncVolume() {
         const silent = video.muted || video.volume === 0;
         volume.value = silent ? 0 : video.volume;
@@ -1039,14 +1124,18 @@
     function closeModal() {
       const modal = document.getElementById('modal');
       const content = document.getElementById('modalContent');
-      modal.classList.remove('open', 'image-open');
-      content.querySelector('video')?.pause();
-      content.innerHTML = '';
+      modal.classList.remove('open', 'image-open', 'video-open');
+      document.documentElement.classList.remove('video-viewing');
+      releaseModalMedia(content);
     }
 
     document.getElementById('modalClose').addEventListener('click', closeModal);
     document.getElementById('modal').addEventListener('click', closeModal);
-    document.getElementById('modalBox').addEventListener('click', (e) => e.stopPropagation());
+    document.getElementById('modalBox').addEventListener('click', (e) => {
+      if (matchMedia('(max-width: 900px), (hover: none) and (pointer: coarse)').matches &&
+          (e.target === e.currentTarget || e.target.id === 'modalContent')) closeModal();
+      e.stopPropagation();
+    });
     document.addEventListener('keydown', (e) => { if (e.key === 'Escape') closeModal(); });
 
     const menuToggle = document.getElementById('menuToggle');
